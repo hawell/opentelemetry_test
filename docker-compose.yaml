@@ -1,0 +1,45 @@
+version: "3"
+services:
+
+  jaeger-all-in-one:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"
+      - "14268"
+      - "14250"
+      - "6831"
+      - "14269"
+
+  otel-collector:
+    image: otel/opentelemetry-collector-dev:latest
+    command: ["--config=/etc/otel-collector-config.yaml", "${OTELCOL_ARGS}"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "8888:8888"
+      - "8889:8889"
+      - "55680"
+    depends_on:
+      - jaeger-all-in-one
+
+  otel-agent:
+    image: otel/opentelemetry-collector-dev:latest
+    command: ["--config=/etc/otel-agent-config.yaml", "${OTELCOL_ARGS}"]
+    volumes:
+      - ./otel-agent-config.yaml:/etc/otel-agent-config.yaml
+    ports:
+      - "55678"
+    depends_on:
+      - otel-collector
+
+  load-generator:
+    image: golang:latest
+    volumes:
+      - ./main.go:/root/go/src/otel_test/main.go
+      - ./go.mod:/root/go/src/otel_test/go.mod
+    environment:
+      - OTEL_AGENT_ENDPOINT=otel-agent:55678
+      - GOPATH=/root/go
+    command: bash -c "cd /root/go/src/otel_test && go get && go run ./main.go"
+    depends_on:
+      - otel-agent

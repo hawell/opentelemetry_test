@@ -4,9 +4,10 @@ import (
 	"context"
 	"go.opentelemetry.io/otel/baggage"
 	"log"
+	"os"
 
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/stdout"
+	"go.opentelemetry.io/otel/exporters/otlp"
 	"go.opentelemetry.io/otel/label"
 	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -14,7 +15,7 @@ import (
 )
 
 func main() {
-	exporter, err := stdout.NewExporter([]stdout.Option{stdout.WithPrettyPrint()}...)
+	exporter, err := otlp.NewExporter([]otlp.ExporterOption{otlp.WithInsecure(), otlp.WithAddress(os.Getenv("OTEL_AGENT_ENDPOINT"))}...)
 	if err != nil {
 		log.Fatalf("failed to initialize exporter: %v", err)
 	}
