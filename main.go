@@ -14,7 +14,9 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 	"log"
+	"math/rand"
 	"os"
+	"time"
 )
 
 func main() {
@@ -49,27 +51,34 @@ func main() {
 	c1 := metric.Must(meter).NewInt64Counter("c1")
 	c1.Add(ctx, int64(100), []label.KeyValue{label.String("A", "B")}...)
 
-	err = func(ctx context.Context) error {
-		var span trace.Span
-		ctx, span = tracer.Start(ctx, "operation")
-		defer span.End()
-
-		span.AddEvent("Nice operation!", trace.WithAttributes(label.Int("bogons", 100)))
-		span.SetAttributes(label.String("anotherKey", "yes"))
-
-		return func(ctx context.Context) error {
+	for {
+		err = func(ctx context.Context) error {
 			var span trace.Span
-			ctx, span = tracer.Start(ctx, "Sub operation...")
-			defer span.End()
+			ctx, span = tracer.Start(ctx, "operation")
+			defer func() {
+				time.Sleep(time.Millisecond * time.Duration(rand.Intn(1000)))
+				span.End()
+			}()
 
-			span.SetAttributes(label.String("lemonsKey", "five"))
-			span.AddEvent("Sub span event")
+			span.AddEvent("Nice operation!", trace.WithAttributes(label.Int("bogons", 100)))
+			span.SetAttributes(label.String("anotherKey", "yes"))
 
-			return nil
+			return func(ctx context.Context) error {
+				var span trace.Span
+				ctx, span = tracer.Start(ctx, "Sub operation...")
+				defer func() {
+					time.Sleep(time.Millisecond * time.Duration(rand.Intn(1000)))
+					span.End()
+				}()
+
+				span.SetAttributes(label.String("lemonsKey", "five"))
+				span.AddEvent("Sub span event")
+
+				return nil
+			}(ctx)
 		}(ctx)
-	}(ctx)
-	if err != nil {
-		panic(err)
+		if err != nil {
+			panic(err)
+		}
 	}
-
 }
