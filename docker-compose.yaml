@@ -3,10 +3,16 @@ services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:6.0.0
     environment:
-      - bootstrap.memory_lock=true
+      - cluster.name=jaeger-cluster
+      - discovery.type=single-node
+      - http.host=0.0.0.0
+      - transport.host=127.0.0.1
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - xpack.security.enabled=false
+      - bootstrap.memory_lock=true
     ports:
       - "9200:9200"
+      - "9300:9300"
     ulimits:
       memlock:
         soft: -1
@@ -14,7 +20,6 @@ services:
     volumes:
       - esdata1:/usr/share/elasticsearch/data
       - eslog:/usr/share/elasticsearch/logs
-      - ./elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
 
   kibana:
     image: docker.elastic.co/kibana/kibana:6.0.0
@@ -37,7 +42,6 @@ services:
     image: jaegertracing/jaeger-collector:latest
     environment:
       - SPAN_STORAGE_TYPE=elasticsearch
-      - ES_SERVER_URLS=http://elasticsearch:9200
     ports:
       - "14267"
       - "14268"
@@ -45,19 +49,19 @@ services:
       - "14250"
     depends_on:
       - elasticsearch
-    command: ["--span-storage.type=elasticsearch", "--es.server-urls=http://elasticsearch:9200", "--es.timeout=0"]
+    command: [ "--es.server-urls=http://elasticsearch:9200", "--es.num-shards=1", "--es.num-replicas=0", "--log-level=error"]
 
   jaeger-query:
     image: jaegertracing/jaeger-query:latest
     environment:
       - SPAN_STORAGE_TYPE=elasticsearch
-      - ES_SERVER_URLS=http://localhost:9200
+      - no_proxy=localhost
     ports:
       - "16686:16686"
     depends_on:
       - elasticsearch
       - jaeger-collector
-    command: ["--span-storage.type=elasticsearch", "--es.server-urls=http://elasticsearch:9200", "--es.sniffer=false", "--log-level=debug" ]
+    command: [ "--es.server-urls=http://elasticsearch:9200", "--log-level=error"]
 
   otel-collector:
     image: otel/opentelemetry-collector-dev:latest
@@ -82,14 +86,9 @@ services:
       - otel-collector
 
   load-generator:
-    image: golang:latest
-    volumes:
-      - ./main.go:/root/go/src/otel_test/main.go
-      - ./go.mod:/root/go/src/otel_test/go.mod
+    image: otel_test/load-generator
     environment:
       - OTEL_AGENT_ENDPOINT=otel-agent:55678
-      - GOPATH=/root/go
-    command: bash -c "cd /root/go/src/otel_test && go get && go run ./main.go"
     depends_on:
       - otel-agent
 
