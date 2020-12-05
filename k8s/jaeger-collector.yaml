@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jaeger-collector
+  labels:
+    app: observability
+    component: jaeger-collector
+spec:
+  selector:
+    matchLabels:
+      app: observability
+      component: jaeger-collector
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: observability
+        component: jaeger-collector
+    spec:
+      containers:
+        - image: jaegertracing/jaeger-collector:1.21.0
+          name: jaeger-collector
+          imagePullPolicy: IfNotPresent
+          args: ["--es.server-urls=http://elasticsearch:9200", "--es.num-shards=1", "--es.num-replicas=0", "--log-level=error"]
+          env:
+            - name: SPAN_STORAGE_TYPE
+              value: elasticsearch
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger-collector
+  labels:
+    app: observability
+    component: jaeger-collector
+spec:
+  ports:
+    - name: tchannel-thrift
+      port: 14267
+      protocol: TCP
+      targetPort: 14267
+    - name: http-thrift
+      port: 14268
+      protocol: TCP
+      targetPort: 14268
+    - name: healthcheck
+      port: 14269
+      protocol: TCP
+      targetPort: 14269
+    - name: otelp
+      port: 14250
+      protocol: TCP
+      targetPort: 14250
+  selector:
+    component: jaeger-collector

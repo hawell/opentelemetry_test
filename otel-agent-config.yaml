@@ -10,11 +10,30 @@ exporters:
     endpoint: "otel-collector:55680"
     insecure: true
 
+processors:
+  probabilistic_sampler:
+    hash_seed: 22
+    sampling_percentage: 100
+  memory_limiter:
+    ballast_size_mib: 2000
+    check_interval: 5s
+    limit_percentage: 50
+    spike_limit_percentage: 30
+  batch:
+    send_batch_size: 10
+    timeout: 10s
+
+extensions:
+  health_check:
+
 service:
+  extensions: [health_check]
   pipelines:
     traces:
       receivers: [otlp]
+      processors: [memory_limiter, probabilistic_sampler, batch]
       exporters: [otlp]
     metrics:
       receivers: [otlp]
+      processors: [memory_limiter, batch]
       exporters: [otlp]

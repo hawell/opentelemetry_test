@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service-pod
+  labels:
+    app: observability
+    component: user-service-pod
+spec:
+  selector:
+    matchLabels:
+      app: observability
+      component: user-service-pod
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: observability
+        component: user-service-pod
+    spec:
+      containers:
+        - image: otel_test/load-generator:0.0.1
+          name: otel-load-generator
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: OTEL_AGENT_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: otel-load-generator-config
+                  key: otel.agent
+        - image: otel/opentelemetry-collector-dev:latest
+          name: otel-agent
+          args: ["--config=/etc/config/otel-agent-config.yaml"]
+          volumeMounts:
+          - name: config-volume
+            mountPath: /etc/config/
+      volumes:
+        - name: config-volume
+          configMap:
+            name: otel-agent-config

@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jaeger-query
+  labels:
+    app: observability
+    component: jaeger-query
+spec:
+  selector:
+    matchLabels:
+      app: observability
+      component: jaeger-query
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: observability
+        component: jaeger-query
+    spec:
+      containers:
+        - image: jaegertracing/jaeger-query:1.21.0
+          imagePullPolicy: IfNotPresent
+          name: jaeger-query
+          args: ["--es.server-urls=http://elasticsearch:9200", "--log-level=error"]
+          env:
+            - name: SPAN_STORAGE_TYPE
+              value: elasticsearch
+            - name: no_proxy
+              value: localhost
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger-query
+  labels:
+    app: observability
+    component: jaeger-query
+spec:
+  type: NodePort
+  ports:
+    - name: front
+      port: 16686
+      protocol: TCP
+      targetPort: 16686
+  selector:
+    component: jaeger-query

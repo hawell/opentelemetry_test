@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch
+  labels:
+    app: observability
+    component: elasticsearch
+spec:
+  selector:
+    matchLabels:
+      app: observability
+      component: elasticsearch
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: observability
+        component: elasticsearch
+    spec:
+      containers:
+        - image: elasticsearch:7.8.0
+          name: elasticsearch
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: discovery.type
+              value: single-node
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  labels:
+    app: observability
+    component: elasticsearch
+spec:
+  ports:
+    - name: es
+      port: 9200
+      protocol: TCP
+      targetPort: 9200
+  selector:
+    component: elasticsearch
